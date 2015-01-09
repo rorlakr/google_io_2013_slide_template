@@ -1,0 +1,232 @@
+<!--
+Google IO 2012/2013 HTML5 Slide Template
+
+Authors: Eric Bidelman <ebidel@gmail.com>
+         Luke Mahé <lukem@google.com>
+
+URL: https://code.google.com/p/io-2012-slides
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <!--<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">-->
+  <!--<meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+  <!--This one seems to work all the time, but really small on ipad-->
+  <!--<meta name="viewport" content="initial-scale=0.4">-->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" media="all" href="theme/css/default.css">
+  <link rel="stylesheet" media="only screen and (max-device-width: 480px)" href="theme/css/phone.css">
+  <base target="_blank"> <!-- This amazingness opens all links in a new tab. -->
+  <script data-main="js/slides" src="js/require-1.0.8.min.js"></script>
+</head>
+<body style="opacity: 0">
+
+<slides class="layout-widescreen">
+
+  <slide class="logoslide nobackground">
+    <article class="flexbox vcenter">
+      <span><img src="images/rorlab_emblem_white_no_border.png"></span>
+    </article>
+  </slide>
+
+  <slide class="title-slide segue nobackground">
+    <aside class="gdbar"><img src="images/rorlab_logo_rectangle_128.png"></aside>
+    <!-- The content of this hgroup is replaced programmatically through the slide_config.json. -->
+    <hgroup class="auto-fadein">
+      <h1 data-config-title><!-- populated from slide_config.json --></h1>
+      <h2 data-config-subtitle><!-- populated from slide_config.json --></h2>
+      <p data-config-presenter><!-- populated from slide_config.json --></p>
+    </hgroup>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>
+        ActiveJob, Rails 4.2.0
+      </h2>
+    </hgroup>
+    <article>
+      <ul>
+      <li>
+        A Job => Adapter
+      </li>
+      <li>
+        Default Adapter => :inline (즉시 실행)
+      </li>
+      <li>
+        Change Adapter to :delayed_job, :sidekiq, :sucker_punch, etc
+        <br />
+        => <i>Application.rb</i>
+
+      </li>
+      </ul>
+        <pre class='prettyprint' data-lang='ruby'>config.active_job.queue_adapter = :inline</pre>
+    </article>
+  </slide>
+
+    <slide>
+      <hgroup>
+        <h2>Gemfile</h2>
+
+      </hgroup>
+      <article>
+        <pre class='prettyprint' data-lang='ruby'>gem 'delayed_job_active_record'
+gem 'delayed_job_web'
+gem 'sidekiq'
+gem 'sucker_punch'
+gem 'letter_opener', group: :development</pre>
+        <p>=> <code>"bundle install"</code></p>
+        <pre class='prettyprint' data-lang='ruby'># development.rb
+config.action_mailer.delivery_method = <b>:letter_opener</b></pre>
+      </article>
+    </slide>
+
+    <slide>
+      <hgroup>
+        <h2>ActionMailer</h2>
+      </hgroup>
+      <article>
+        <p>Active Job is integrated with Action Mailer so you can easily send emails asynchronously.</p>
+        <ul>
+          <li><i><b>#deliver_now</b></i></li>
+          <li><i><b>#deliver_later</b></i> : though activejob</li>
+        </ul>
+        <p>해당 모델 클래스의 Mailer 생성</p>
+        <pre class='prettyprint' data-lang='shell'>$ bin/rails g mailer PostMailer</pre>
+      </article>
+    </slide>
+
+    <slide>
+      <hgroup>
+        <h2>ActionMailer</h2>
+        <h3>액션 정의</h3>
+      </hgroup>
+      <article>
+        <pre class='prettyprint' data-lang='ruby'>class PostMailer < ApplicationMailer
+
+  def <b>notice_mail</b>(email)
+    @email = email
+    mail(
+          to: @email,
+          subject: "test mail"
+    )
+  end
+
+end</code></pre>
+      </article>
+    </slide>
+
+    <slide>
+      <hgroup>
+        <h2>ActionMailer</h2>
+        <h3>액션 뷰 템플릿 2가지 : html & text 형</h3>
+      </hgroup>
+      <article>
+        <pre class='prettyprint' data-lang='text'># app/views/post_mailer/notice_mail.<b>html</b>.erb
+# app/views/post_mailer/notice_mail.<b>text</b>.erb</code></pre>
+      </article>
+    </slide>
+
+    <slide>
+      <hgroup>
+        <h2>ActionMailer#deliver_later</h2>
+        <h3>PostsController#create</h3>
+      </hgroup>
+      <article class='smaller'>
+        <pre class='prettyprint' data-lang='ruby'>def create
+  @post = Post.new(post_params)
+
+  respond_to do |format|
+    if @post.save
+      PostMailer.notice_mail(@post.email)<b>.deliver_later</b>
+      format.html { redirect_to @post, notice: 'Post was successfully created.' }
+      format.json { render :show, status: :created, location: @post }
+    else
+      format.html { render :new }
+      format.json { render json: @post.errors, status: :unprocessable_entity }
+    end
+  end
+end</code></pre>
+        <p>=> <code>.deliver_later</code></p>
+        <p style='color:red;'>ActiveJob을 정의할 필요가 없음...</p>
+      </article>
+    </slide>
+
+    <slide>
+      <hgroup>
+        <h2>ActiveJob Adapter</h2>
+        <h3>-application.rb-</h3>
+      </hgroup>
+      <article>
+        <pre class='prettyprint' data-lang='ruby'># bin/delayed_job 데몬을 먼저 실행해 놓아야 함.
+config.active_job.queue_adapter = <b>:delayed_job</b></pre>
+        <p>or</p>
+        <pre class='prettyprint' data-lang='ruby'># redis-server가 실행되어 있어야 함.
+config.active_job.queue_adapter = <b>:sidekiq</b></pre>
+        <p>or</p>
+        <pre class='prettyprint' data-lang='ruby'># 사전 조치가 필요 없음.
+config.active_job.queue_adapter = <b>:sucker_punch</b></pre>
+      </article>
+    </slide>
+
+    <slide>
+      <hgroup>
+        <h2>ActiveJob Adapters</h2>
+      </hgroup>
+      <article>
+        <ul>
+          <li>Backburner</li>
+          <li><b>Delayed Job</b></li>
+          <li>Qu</li>
+          <li>Que</li>
+          <li>queue_classic</li>
+          <li>Resque 1.x</li>
+          <li><b>Sidekiq</b></li>
+          <li>Sneakers</li>
+          <li><b>Sucker Punch</b></li>
+        </ul>
+      </article>
+    </slide>
+
+  <slide class="thank-you-slide segue nobackground">
+    <aside class="gdbar right"><img src="images/rorlab_logo_rectangle_128.png"></aside>
+    <article class="flexbox vleft auto-fadein">
+      <h2>&lt;Thank You!&gt;</h2>
+      <p>최효성 lucius.choi@gmail.com</p>
+    </article>
+    <p class="auto-fadein" data-config-contact>
+      <!-- populated from slide_config.json -->
+    </p>
+  </slide>
+
+  <slide class="logoslide dark nobackground">
+    <article class="flexbox vcenter">
+      <span><img src="images/rorlab_emblem_white.png"></span>
+    </article>
+  </slide>
+
+  <slide class="backdrop"></slide>
+
+</slides>
+
+<script>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-XXXXXXXX-1']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+
+<!--[if IE]>
+  <script src="http://ajax.googleapis.com/ajax/libs/chrome-frame/1/CFInstall.min.js"></script>
+  <script>CFInstall.check({mode: 'overlay'});</script>
+<![endif]-->
+</body>
+</html>
